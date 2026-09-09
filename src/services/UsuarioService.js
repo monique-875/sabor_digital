@@ -75,6 +75,42 @@ class UsuarioService {
             }
         };
     }
+
+        async listarUsuarios() {
+        return await UsuarioRepository.findAll();
+    }
+
+    async buscarPorId(id) {
+        const usuario = await UsuarioRepository.findById(id);
+        // Se não achou ninguém com esse id, lança erro 404 (Não Encontrado)
+        if (!usuario) {
+            throw { status: 404, mensagem: "Usuário não encontrado" };
+        }
+        return usuario;
+    }
+
+    async atualizarUsuario(id, dados) {
+          // Confere se o usuário existe ANTES de tentar atualizar
+        const usuario = await UsuarioRepository.findById(id);
+        if (!usuario) {
+            throw { status: 404, mensagem: "Usuário não encontrado" };
+        }
+        await UsuarioRepository.update(id, dados);
+        return { sucesso: true, mensagem: "Usuário atualizado com sucesso" };
+    }
+
+    async deletarUsuario(id) {
+            // Mesma verificação: não faz sentido tentar deletar quem não existe
+        const usuario = await UsuarioRepository.findById(id);
+        if (!usuario) {
+            throw { status: 404, mensagem: "Usuário não encontrado" };
+        }
+        await UsuarioRepository.delete(id);
+        return { sucesso: true, mensagem: "Usuário deletado com sucesso" };
+    }
 }
+
+
+
 
 module.exports = new UsuarioService();
