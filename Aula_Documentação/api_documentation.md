@@ -1,242 +1,413 @@
-# Documentação da API - Cantina Bella Vita
+# Contrato da API Sabor Digital
 
-Esta documentação é destinada à equipe de frontend para integração com a API da Cantina Bella Vita. 
-A API Rest fornece endpoints completos para gerenciar **Produtos**, **Cardápios** e **Pedidos**.
+Contrato de integração para o back-end localizado em `src/`.
 
-> **Base URL:** `http://localhost:3000` (ou a URL de produção/homologação quando disponível) \
-> **Content-Type:** Todas as requisições e respostas com corpo utilizam padrão `application/json`. \
-> **Segurança:** Várias rotas agora requerem autenticação. Você deve enviar o Token JWT no cabeçalho HTTP: `Authorization: Bearer <seu_token>`
+## 1. Visão geral
 
----
+- **Base URL local:** `http://localhost:3000`
+- **Documentação interativa:** `GET /api-docs`
+- **Formato padrão:** JSON, exceto nas operações de produto que recebem imagem.
+- **CORS:** habilitado pelo servidor.
+- **Identificador:** os IDs são numéricos e correspondem aos registros do banco.
 
-## 0. Autenticação (JWT)
-O sistema exige login para realizar modificações no cardápio e nos produtos.
+As rotas são registradas diretamente na raiz. Portanto, os caminhos abaixo não possuem prefixo adicional como `/api`.
 
-### **Criar Conta**
-**`POST /auth/registrar`** \
-Cria um novo usuário.
-**Body:**
+## 2. Autenticação
+
+O login retorna um token JWT. Nas rotas protegidas, envie:
+
+```http
+Authorization: Bearer <token>
+```
+
+### Permissões
+
+| Grupo                                   | Autenticação | Papel exigido                |
+| --------------------------------------- | -----------: | ---------------------------- |
+| `/auth/*`                               |          Não | Nenhum                       |
+| `GET /usuarios/me`                      |          Sim | Qualquer usuário autenticado |
+| `GET /produtos` e `GET /produtos/:id`   |          Não | Nenhum                       |
+| `POST`, `PUT` e `DELETE /produtos`      |          Sim | `admin`                      |
+| `GET /cardapios` e `GET /cardapios/:id` |          Não | Nenhum                       |
+| `POST` e `DELETE /cardapios`            |          Sim | `admin`                      |
+| `/pedidos/*`                            |          Não | Nenhum                       |
+
+Respostas de autenticação:
+
+```json
+{ "erro": "Token não informado." }
+```
+
+```json
+{ "erro": "Token inválido ou expirado." }
+```
+
+```json
+{ "erro": "Você não tem permissão para acessar este recurso." }
+```
+
+Os status correspondentes são `401`, `403` e `403`.
+
+## 3. Endpoint de status
+
+### `GET /`
+
+Indica que a API está disponível.
+
+**Resposta `200 OK`:**
+
 ```json
 {
-  "nome": "Admin",
-  "email": "admin@sabordigital.com",
-  "senha": "123",
-  "papel": "admin"
+  "mensagem": "API SaborDigital funcionando 🍝",
+  "versao": "1.0.0",
+  "arquitetura": "MVC + SOLID (Refatorada)"
 }
 ```
 
-### **Fazer Login**
-**`POST /auth/login`** \
-Autentica o usuário e devolve o Token JWT.
-**Body:**
+## 4. Usuários e autenticação
+
+### `POST /auth/registrar` ou `POST /usuarios/registrar`
+
+Cria um usuário. O campo `papel` é opcional; quando omitido, o banco utiliza `cliente`.
+
+**Corpo:**
+
 ```json
 {
-  "email": "admin@sabordigital.com",
-  "senha": "123"
-}
-```
-**Resposta (200 OK):** Guarda a chave `"token"` e a utilize nas rotas protegidas.
-
----
-
-## 1. Informações da API
-**`GET /`** \
-Retorna o status atual da aplicação.
-
-**Resposta de Sucesso (200 OK):**
-```json
-{
-    "mensagem": "API Cantina Bella Vita funcionando 🍝",
-    "versao": "1.0.0",
-    "arquitetura": "MVC + SOLID (Refatorada)"
+  "nome": "Maria Silva",
+  "email": "maria@exemplo.com",
+  "senha": "123456",
+  "papel": "cliente"
 }
 ```
 
-### **Formato de Retorno de Erros (400, 404, 500)**
-O backend sempre retorna os erros (ex: `404 Not Found` quando um item não é encontrado, ou `400 Bad Request` quando uma regra de validação falha) em um corpo JSON padronizado através da propriedade `"erro"`. A equipe deve escutar esta propriedade para mostrar os alertas na tela.
+Campos obrigatórios: `nome`, `email` e `senha`.
 
-**Exemplo de Resposta de Erro:**
+**Resposta `201 Created`:**
+
 ```json
 {
-    "erro": "Pedido não encontrado."
-}
-```
-
----
-
-## 2. Produtos
-Rotas para gerenciar pratos e bebidas individuais do restaurante.
-
-### **Listar Produtos**
-**`GET /produtos`** \
-Retorna a lista de todos os produtos ativos e inativos.
-
-**Resposta (200 OK):**
-```json
-[
-  {
+  "mensagem": "Usuário cadastrado com sucesso",
+  "usuario": {
     "id": 1,
-    "nome": "Espaguete à Bolonhesa",
-    "descricao": "Massa com molho...",
-    "preco": "35.50",
-    "categoria": "Massa",
-    "imagem": "/public/uploads/produtos/1684321234-56789.jpg",
-    "disponivel": 1,
-    "criado_em": "...",
-    "atualizado_em": "..."
+    "nome": "Maria Silva",
+    "email": "maria@exemplo.com",
+    "papel": "cliente",
+    "criado_em": "2026-09-17T12:00:00.000Z"
   }
-]
-```
-> **Nota sobre imagens:** A propriedade `imagem` já vem prefixada com `/public/`. O Front-end deve apenas concatenar isso à URL base (Ex: `http://localhost:3000/public/uploads/produtos/1684321234-56789.jpg`) e utilizar na tag `<img src="...">`.
-
-### **Buscar Produto Específico**
-**`GET /produtos/:id`** \
-Busca detalhes de um produto pelo seu [id](file:///c:/Users/Instrutor/Desktop/Somativa/src/services/PedidoService.js#5-48).
-- **404 Not Found:** Quando o ID não existe.
-
-### **Cadastrar Produto**
-**`POST /produtos`** \
-Endpoint para adicionar um novo produto ao banco de dados.
-
-**Body Mínimo Esperado:**
-```json
-{
-  "nome": "Suco de Uva",
-  "descricao": "Copo 500ml",
-  "preco": 10.50,
-  "categoria": "Bebida",
-  "disponivel": true
 }
 ```
 
-### **Atualizar Produto**
-**`PUT /produtos/:id`** \
-Atualiza completamente os dados de um determinado produto. O formato do corpo é igual à rota `POST /produtos`.
+Possíveis erros: `400` para campos ausentes ou e-mail duplicado.
 
-### **Deletar Produto**
-**`DELETE /produtos/:id`** \
-Evite caso o produto esteja vinculado a um pedido histórico devido a restrições no banco. Retorna mensagem de sucesso.
+### `POST /auth/login` ou `POST /usuarios/login`
 
----
+Autentica um usuário e gera o JWT.
 
-## 3. Cardápios
-Rotas para gerenciar menus combinados (Ex: "Menu do Dia", associando vários produtos a um cardápio).
+**Corpo:**
 
-### **Listar Cardápios**
-**`GET /cardapios`** \
-Retorna todos os cardápios (sem a listagem profunda de produtos envolvidos).
+```json
+{
+  "email": "maria@exemplo.com",
+  "senha": "123456"
+}
+```
 
-### **Buscar Cardápio e Produtos Relacionados**
-**`GET /cardapios/:id`** \
-Lista os detalhes do cardápio solicitado e traz uma key `"produtos"` populada com todos os itens pertencentes a este cardápio.
+**Resposta `200 OK`:**
 
-**Resposta (200 OK):**
+```json
+{
+  "token": "<jwt>",
+  "usuario": {
+    "id": 1,
+    "nome": "Maria Silva",
+    "email": "maria@exemplo.com",
+    "papel": "cliente"
+  }
+}
+```
+
+Possíveis erros: `400` para campos ausentes e `401` para credenciais inválidas.
+
+### `GET /usuarios/me`
+
+Retorna os dados do usuário associado ao token. Exige autenticação.
+
+**Resposta `200 OK`:**
+
 ```json
 {
   "id": 1,
-  "nome": "Combo Família",
-  "descricao": "Massa tamanho família e refrigerante",
-  "disponivel": 1,
-  "produtos": [
+  "nome": "Maria Silva",
+  "email": "maria@exemplo.com",
+  "papel": "cliente",
+  "criado_em": "2026-09-17T12:00:00.000Z"
+}
+```
+
+## 5. Produtos
+
+### `GET /produtos`
+
+Lista todos os produtos, ordenados do ID mais recente para o mais antigo.
+
+**Resposta `200 OK`:**
+
+```json
+{
+  "sucesso": true,
+  "dados": [
     {
       "id": 1,
       "nome": "Espaguete à Bolonhesa",
-      "preco": "35.50"
+      "descricao": "Massa com molho de tomate e carne moída",
+      "preco": "35.50",
+      "categoria": "Massa",
+      "imagem": "/public/uploads/produtos/1684321234-foto.jpg",
+      "disponivel": 1,
+      "criado_em": "2026-09-17T12:00:00.000Z",
+      "atualizado_em": "2026-09-17T12:00:00.000Z"
     }
-  ]
+  ],
+  "total": 1
 }
 ```
 
-### **Cadastrar Cardápio**
-**`POST /cardapios`** \
-Cria um agrupamento de cardápio passando os dados principais dele e um array de IDs que represetam os produtos vinculados.
+`imagem` é `null` quando o produto não possui arquivo. Para exibir uma imagem, concatene o caminho à Base URL.
 
-**Body:**
+### `GET /produtos/:id`
+
+Busca um produto pelo ID.
+
+**Resposta `200 OK`:** `{ "sucesso": true, "dados": { ...produto } }`
+
+Erros: `400` para ID inválido e `404` quando o produto não existe.
+
+### `POST /produtos`
+
+Cadastra um produto. Exige JWT de usuário com papel `admin` e usa `multipart/form-data`.
+
+| Campo        | Tipo     | Obrigatório | Observação                                  |
+| ------------ | -------- | ----------: | ------------------------------------------- |
+| `nome`       | texto    |         Sim | Nome do produto                             |
+| `descricao`  | texto    |         Sim | Descrição                                   |
+| `preco`      | número   |         Sim | Deve ser maior que zero                     |
+| `categoria`  | texto    |         Não | Categoria do produto                        |
+| `disponivel` | booleano |         Não | Padrão: `true`; em FormData, aceita `false` |
+| `imagem`     | arquivo  |         Não | JPEG ou PNG, enviado no campo `imagem`      |
+
+**Resposta `201 Created`:**
+
+```json
+{
+  "sucesso": true,
+  "mensagem": "Produto cadastrado com sucesso",
+  "id": 5
+}
+```
+
+### `PUT /produtos/:id`
+
+Atualiza um produto. Exige admin e usa `multipart/form-data`. Todos os campos são opcionais; envie ao menos um campo válido. A imagem nova substitui a anterior.
+
+**Resposta `200 OK`:**
+
+```json
+{ "sucesso": true, "mensagem": "Produto atualizado com sucesso" }
+```
+
+Erros: `400` para ID/dados inválidos e `404` quando o produto não existe.
+
+### `DELETE /produtos/:id`
+
+Remove um produto. Exige admin.
+
+**Resposta `200 OK`:**
+
+```json
+{ "sucesso": true, "mensagem": "Produto apagado com sucesso" }
+```
+
+## 6. Cardápios
+
+### `GET /cardapios`
+
+Lista os cardápios.
+
+**Resposta `200 OK`:** `{ "sucesso": true, "dados": [ ... ], "total": 1 }`
+
+### `GET /cardapios/:id`
+
+Busca um cardápio e inclui os produtos vinculados na propriedade `produtos`.
+
+**Resposta `200 OK`:**
+
+```json
+{
+  "sucesso": true,
+  "dados": {
+    "id": 1,
+    "nome": "Menu Executivo",
+    "descricao": "Almoço individual",
+    "disponivel": 1,
+    "produtos": [
+      {
+        "id": 1,
+        "nome": "Espaguete à Bolonhesa",
+        "descricao": "Massa com molho de tomate e carne moída",
+        "preco": "35.50",
+        "categoria": "Massa",
+        "imagem": null,
+        "disponivel": 1
+      }
+    ]
+  }
+}
+```
+
+Erros: `400` para ID inválido e `404` quando o cardápio não existe.
+
+### `POST /cardapios`
+
+Cria um cardápio. Exige admin e recebe JSON.
+
 ```json
 {
   "nome": "Menu Executivo",
-  "descricao": "Almoço individual de segunda à sexta",
+  "descricao": "Almoço individual",
   "disponivel": true,
-  "produtosIds": [1, 4]
+  "produtos": [1, 4]
 }
 ```
 
-### **Deletar Cardápio**
-**`DELETE /cardapios/:id`** \
-Apaga o cardápio (os vínculos com o produto e os próprios produtos não são apagados permanentemente).
+`nome` e `produtos` são obrigatórios. `produtos` deve ser um array com pelo menos um ID existente. IDs duplicados são removidos.
 
----
+**Resposta `201 Created`:**
 
-## 4. Pedidos (Caixa / PDV / Atendimento)
-As rotas de pedidos efetuam as ordens. A lógica é focada em validar o que foi escolhido do painel de produtos e calcular o total no back-end, impedindo manipulação fácil de somatórias no front-end.
+```json
+{
+  "sucesso": true,
+  "mensagem": "Cardápio cadastrado com sucesso",
+  "id": 2
+}
+```
 
-### **Criar um Pedido**
-**`POST /pedidos`** \
-Abre um novo pedido enviando quem pediu e uma lista detalhada de quantos itens e qual o ID deles.
+### `DELETE /cardapios/:id`
 
-**Body Esperado:**
+Remove o cardápio e seus vínculos. Exige admin; os produtos não são removidos.
+
+**Resposta `200 OK`:**
+
+```json
+{ "sucesso": true, "mensagem": "Cardápio apagado com sucesso" }
+```
+
+## 7. Pedidos
+
+As rotas de pedidos não exigem JWT no código atual.
+
+### `POST /pedidos`
+
+Cria um pedido. O total é calculado no back-end usando os preços atuais dos produtos; não envie `total`.
+
 ```json
 {
   "cliente": "João da Silva",
   "itens": [
-    {
-      "produto_id": 1,
-      "quantidade": 2
-    },
-    {
-      "produto_id": 4,
-      "quantidade": 1
-    }
-  ]
-}
-```
-*Atenção: Não envie o `total` pago. O cálculo monetário é feito automaticamente no Backend via banco de dados.*
-
-**Resposta de Sucesso (201 Created):**
-Retorna a chave `"pedido"` com o id gerado e o total recém calculado.
-
-### **Listar Pedidos**
-**`GET /pedidos`** \
-Traz as informações gerais de estado para montar boards do tipo Kanban ou listagens (Ex: O que está Pendente, O que está Pronto).
-
-### **Detalhes do Pedido com Sub-itens**
-**`GET /pedidos/:id`** \
-Utilizado para expandir todas as informaçõs quando o usuário clicar num card de Pedido da lista. Ele traz o Pedido + itens com nome do produto do banco cruzado.
-
-**Resposta do Objeto (200 OK):**
-```json
-{
-  "id": 1,
-  "cliente": "João da Silva",
-  "status": "pendente",
-  "total": "83.00",
-  "itens": [
-    {
-      "id": 1,
-      "pedido_id": 1,
-      "produto_id": 1,
-      "quantidade": 2,
-      "preco_unitario": "35.50",
-      "produto_nome": "Espaguete à Bolonhesa",
-      "produto_descricao": "Massa com molho..."
-    }
+    { "produto_id": 1, "quantidade": 2 },
+    { "produto_id": 4, "quantidade": 1 }
   ]
 }
 ```
 
-### **Atualizar Status do Pedido (Ex: Mover no Kanban)**
-**`PATCH /pedidos/:id/status`** \
-Rota simples destinada aos entregadores ou cozinheiros, apenas para evoluir a etapa do preparo.
+Cada item deve possuir `produto_id` e `quantidade` maior que zero. Produtos indisponíveis não podem ser pedidos.
 
-- **Status aceitos textualmente:** `"pendente"`, `"preparo"`, `"pronto"`, `"entregue"`.
+**Resposta `201 Created`:**
 
-**Body Esperado:**
 ```json
 {
-  "status": "preparo"
+  "mensagem": "Pedido criado com sucesso",
+  "pedido": {
+    "id": 10,
+    "cliente": "João da Silva",
+    "status": "pendente",
+    "total": "83.00",
+    "criado_em": "2026-09-17T12:00:00.000Z",
+    "atualizado_em": "2026-09-17T12:00:00.000Z",
+    "itens": [
+      {
+        "id": 20,
+        "pedido_id": 10,
+        "produto_id": 1,
+        "quantidade": 2,
+        "preco_unitario": "35.50",
+        "produto_nome": "Espaguete à Bolonhesa",
+        "produto_descricao": "Massa com molho de tomate e carne moída"
+      }
+    ]
+  }
 }
 ```
 
-### **Cancelar/Deletar Pedido**
-**`DELETE /pedidos/:id`** \
-Remove completamente o pedido e estorna seus itens.
+### `GET /pedidos`
+
+Lista os pedidos, sem os itens detalhados.
+
+**Resposta `200 OK`:** array de pedidos com `id`, `cliente`, `status`, `total`, `criado_em` e `atualizado_em`.
+
+### `GET /pedidos/:id`
+
+Busca um pedido com a lista de itens e os dados básicos de cada produto.
+
+**Resposta `200 OK`:** objeto de pedido com `itens`, conforme o exemplo de criação.
+
+### `PATCH /pedidos/:id/status`
+
+Atualiza apenas o status do pedido.
+
+```json
+{ "status": "preparo" }
+```
+
+Valores aceitos: `pendente`, `preparo`, `pronto` e `entregue`.
+
+**Resposta `200 OK`:**
+
+```json
+{
+  "mensagem": "Status atualizado com sucesso",
+  "pedido": { "id": 10, "status": "preparo" }
+}
+```
+
+### `DELETE /pedidos/:id`
+
+Exclui o pedido e seus itens relacionados.
+
+**Resposta `200 OK`:**
+
+```json
+{ "mensagem": "Pedido excluído com sucesso" }
+```
+
+## 8. Convenção de erros
+
+Os controladores retornam JSON, mas o envelope varia conforme o módulo:
+
+- autenticação, usuários e pedidos: `{ "erro": "mensagem" }`;
+- produtos e cardápios: `{ "sucesso": false, "mensagem": "mensagem", "erro": "..." }`;
+- validação de pedido: `400`;
+- recurso inexistente: normalmente `404`;
+- falha inesperada: normalmente `500`.
+
+O cliente deve usar o status HTTP como fonte principal e exibir `mensagem` quando existir; como fallback, usar `erro`.
+
+## 9. Arquivos estáticos
+
+Imagens enviadas para produtos ficam disponíveis em:
+
+```text
+GET /public/uploads/produtos/<nome-do-arquivo>
+```
+
+Exemplo completo: `http://localhost:3000/public/uploads/produtos/1684321234-foto.jpg`.

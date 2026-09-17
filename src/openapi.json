@@ -1,0 +1,782 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Sabor Digital API",
+    "description": "Contrato OpenAPI da API Sabor Digital.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Ambiente local"
+    }
+  ],
+  "tags": [
+    { "name": "Status", "description": "Disponibilidade da API" },
+    { "name": "Autenticacao", "description": "Cadastro e login" },
+    { "name": "Usuarios", "description": "Dados do usuario autenticado" },
+    { "name": "Produtos", "description": "Pratos e bebidas" },
+    { "name": "Cardapios", "description": "Cardapios e produtos vinculados" },
+    { "name": "Pedidos", "description": "Criacao e acompanhamento de pedidos" }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "Erro": {
+        "type": "object",
+        "properties": {
+          "erro": { "type": "string", "example": "Recurso nao encontrado." }
+        }
+      },
+      "StatusResponse": {
+        "type": "object",
+        "required": ["mensagem", "versao", "arquitetura"],
+        "properties": {
+          "mensagem": {
+            "type": "string",
+            "example": "API SaborDigital funcionando"
+          },
+          "versao": { "type": "string", "example": "1.0.0" },
+          "arquitetura": {
+            "type": "string",
+            "example": "MVC + SOLID (Refatorada)"
+          }
+        }
+      },
+      "Usuario": {
+        "type": "object",
+        "required": ["id", "nome", "email", "papel"],
+        "properties": {
+          "id": { "type": "integer", "format": "int32", "example": 1 },
+          "nome": { "type": "string", "example": "Maria Silva" },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "maria@exemplo.com"
+          },
+          "papel": {
+            "type": "string",
+            "enum": ["admin", "cliente"],
+            "example": "cliente"
+          },
+          "criado_em": { "type": "string", "format": "date-time" }
+        }
+      },
+      "UsuarioInput": {
+        "type": "object",
+        "required": ["nome", "email", "senha"],
+        "properties": {
+          "nome": { "type": "string", "example": "Maria Silva" },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "maria@exemplo.com"
+          },
+          "senha": {
+            "type": "string",
+            "format": "password",
+            "example": "123456"
+          },
+          "papel": {
+            "type": "string",
+            "enum": ["admin", "cliente"],
+            "default": "cliente"
+          }
+        }
+      },
+      "LoginInput": {
+        "type": "object",
+        "required": ["email", "senha"],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "maria@exemplo.com"
+          },
+          "senha": {
+            "type": "string",
+            "format": "password",
+            "example": "123456"
+          }
+        }
+      },
+      "LoginResponse": {
+        "type": "object",
+        "required": ["token", "usuario"],
+        "properties": {
+          "token": { "type": "string" },
+          "usuario": { "$ref": "#/components/schemas/Usuario" }
+        }
+      },
+      "Produto": {
+        "type": "object",
+        "required": ["id", "nome", "descricao", "preco", "disponivel"],
+        "properties": {
+          "id": { "type": "integer", "example": 1 },
+          "nome": { "type": "string", "example": "Espaguete a Bolonhesa" },
+          "descricao": {
+            "type": "string",
+            "example": "Massa com molho de tomate e carne moida"
+          },
+          "preco": { "type": "string", "example": "35.50" },
+          "categoria": {
+            "type": "string",
+            "nullable": true,
+            "example": "Massa"
+          },
+          "imagem": {
+            "type": "string",
+            "nullable": true,
+            "example": "/public/uploads/produtos/foto.jpg"
+          },
+          "disponivel": { "type": "integer", "enum": [0, 1], "example": 1 },
+          "criado_em": { "type": "string", "format": "date-time" },
+          "atualizado_em": { "type": "string", "format": "date-time" }
+        }
+      },
+      "ProdutoListResponse": {
+        "type": "object",
+        "required": ["sucesso", "dados", "total"],
+        "properties": {
+          "sucesso": { "type": "boolean", "example": true },
+          "dados": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Produto" }
+          },
+          "total": { "type": "integer", "example": 1 }
+        }
+      },
+      "ProdutoResponse": {
+        "type": "object",
+        "required": ["sucesso", "dados"],
+        "properties": {
+          "sucesso": { "type": "boolean", "example": true },
+          "dados": { "$ref": "#/components/schemas/Produto" }
+        }
+      },
+      "OperacaoResponse": {
+        "type": "object",
+        "properties": {
+          "sucesso": { "type": "boolean", "example": true },
+          "mensagem": {
+            "type": "string",
+            "example": "Operacao realizada com sucesso"
+          },
+          "id": { "type": "integer", "example": 1 }
+        }
+      },
+      "CardapioInput": {
+        "type": "object",
+        "required": ["nome", "produtos"],
+        "properties": {
+          "nome": { "type": "string", "example": "Menu Executivo" },
+          "descricao": {
+            "type": "string",
+            "nullable": true,
+            "example": "Almoco individual"
+          },
+          "disponivel": { "type": "boolean", "default": true },
+          "produtos": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "integer" },
+            "example": [1, 4]
+          }
+        }
+      },
+      "Cardapio": {
+        "type": "object",
+        "required": ["id", "nome", "disponivel", "produtos"],
+        "properties": {
+          "id": { "type": "integer", "example": 1 },
+          "nome": { "type": "string", "example": "Menu Executivo" },
+          "descricao": { "type": "string", "nullable": true },
+          "disponivel": { "type": "integer", "enum": [0, 1] },
+          "produtos": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Produto" }
+          }
+        }
+      },
+      "CardapioListResponse": {
+        "type": "object",
+        "properties": {
+          "sucesso": { "type": "boolean" },
+          "dados": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Cardapio" }
+          },
+          "total": { "type": "integer" }
+        }
+      },
+      "CardapioResponse": {
+        "type": "object",
+        "properties": {
+          "sucesso": { "type": "boolean" },
+          "dados": { "$ref": "#/components/schemas/Cardapio" }
+        }
+      },
+      "PedidoItemInput": {
+        "type": "object",
+        "required": ["produto_id", "quantidade"],
+        "properties": {
+          "produto_id": { "type": "integer", "example": 1 },
+          "quantidade": { "type": "integer", "minimum": 1, "example": 2 }
+        }
+      },
+      "PedidoInput": {
+        "type": "object",
+        "required": ["itens"],
+        "properties": {
+          "cliente": {
+            "type": "string",
+            "nullable": true,
+            "example": "Joao da Silva"
+          },
+          "itens": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "$ref": "#/components/schemas/PedidoItemInput" }
+          }
+        }
+      },
+      "PedidoItem": {
+        "allOf": [
+          { "$ref": "#/components/schemas/PedidoItemInput" },
+          {
+            "type": "object",
+            "properties": {
+              "id": { "type": "integer" },
+              "pedido_id": { "type": "integer" },
+              "preco_unitario": { "type": "string", "example": "35.50" },
+              "produto_nome": { "type": "string" },
+              "produto_descricao": { "type": "string" }
+            }
+          }
+        ]
+      },
+      "Pedido": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "example": 10 },
+          "cliente": { "type": "string", "nullable": true },
+          "status": {
+            "type": "string",
+            "enum": ["pendente", "preparo", "pronto", "entregue"]
+          },
+          "total": { "type": "string", "example": "83.00" },
+          "criado_em": { "type": "string", "format": "date-time" },
+          "atualizado_em": { "type": "string", "format": "date-time" },
+          "itens": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/PedidoItem" }
+          }
+        }
+      },
+      "PedidoResponse": {
+        "type": "object",
+        "properties": {
+          "mensagem": { "type": "string" },
+          "pedido": { "$ref": "#/components/schemas/Pedido" }
+        }
+      },
+      "StatusInput": {
+        "type": "object",
+        "required": ["status"],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["pendente", "preparo", "pronto", "entregue"]
+          }
+        }
+      },
+      "ProdutoForm": {
+        "type": "object",
+        "required": ["nome", "descricao", "preco"],
+        "properties": {
+          "nome": { "type": "string" },
+          "descricao": { "type": "string" },
+          "preco": { "type": "number", "format": "float", "minimum": 0.01 },
+          "categoria": { "type": "string" },
+          "disponivel": { "type": "boolean", "default": true },
+          "imagem": { "type": "string", "format": "binary" }
+        }
+      },
+      "ProdutoUpdateForm": {
+        "type": "object",
+        "properties": {
+          "nome": { "type": "string" },
+          "descricao": { "type": "string" },
+          "preco": { "type": "number", "format": "float", "minimum": 0.01 },
+          "categoria": { "type": "string" },
+          "disponivel": { "type": "boolean" },
+          "imagem": { "type": "string", "format": "binary" }
+        }
+      }
+    },
+    "parameters": {
+      "Id": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "description": "ID numerico do recurso",
+        "schema": { "type": "integer", "minimum": 1 },
+        "example": 1
+      }
+    }
+  },
+  "paths": {
+    "/": {
+      "get": {
+        "tags": ["Status"],
+        "summary": "Verifica se a API esta funcionando",
+        "responses": {
+          "200": {
+            "description": "API disponivel",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/StatusResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/registrar": { "$ref": "#/paths/~1usuarios~1registrar" },
+    "/usuarios/registrar": {
+      "post": {
+        "tags": ["Autenticacao"],
+        "summary": "Cadastra um usuario",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UsuarioInput" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Usuario cadastrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "mensagem": { "type": "string" },
+                    "usuario": { "$ref": "#/components/schemas/Usuario" }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dados invalidos",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Erro" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/login": { "$ref": "#/paths/~1usuarios~1login" },
+    "/usuarios/login": {
+      "post": {
+        "tags": ["Autenticacao"],
+        "summary": "Autentica um usuario",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/LoginInput" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login realizado",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/LoginResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "Dados ausentes",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Erro" }
+              }
+            }
+          },
+          "401": {
+            "description": "Credenciais invalidas",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Erro" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/usuarios/me": {
+      "get": {
+        "tags": ["Usuarios"],
+        "summary": "Retorna o usuario autenticado",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Usuario autenticado",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Usuario" }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente ou mal formatado",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Erro" }
+              }
+            }
+          },
+          "403": {
+            "description": "Token invalido ou expirado",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Erro" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/produtos": {
+      "get": {
+        "tags": ["Produtos"],
+        "summary": "Lista produtos",
+        "responses": {
+          "200": {
+            "description": "Lista de produtos",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ProdutoListResponse" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Produtos"],
+        "summary": "Cadastra produto",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": { "$ref": "#/components/schemas/ProdutoForm" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Produto cadastrado",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/OperacaoResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "Dados invalidos",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Erro" }
+              }
+            }
+          },
+          "401": { "description": "Token ausente" },
+          "403": { "description": "Acesso negado" }
+        }
+      }
+    },
+    "/produtos/{id}": {
+      "parameters": [{ "$ref": "#/components/parameters/Id" }],
+      "get": {
+        "tags": ["Produtos"],
+        "summary": "Busca produto por ID",
+        "responses": {
+          "200": {
+            "description": "Produto encontrado",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ProdutoResponse" }
+              }
+            }
+          },
+          "400": { "description": "ID invalido" },
+          "404": { "description": "Produto nao encontrado" }
+        }
+      },
+      "put": {
+        "tags": ["Produtos"],
+        "summary": "Atualiza produto",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": { "$ref": "#/components/schemas/ProdutoUpdateForm" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Produto atualizado",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/OperacaoResponse" }
+              }
+            }
+          },
+          "400": { "description": "Dados invalidos" },
+          "404": { "description": "Produto nao encontrado" }
+        }
+      },
+      "delete": {
+        "tags": ["Produtos"],
+        "summary": "Remove produto",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Produto removido",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/OperacaoResponse" }
+              }
+            }
+          },
+          "404": { "description": "Produto nao encontrado" }
+        }
+      }
+    },
+    "/cardapios": {
+      "get": {
+        "tags": ["Cardapios"],
+        "summary": "Lista cardapios",
+        "responses": {
+          "200": {
+            "description": "Lista de cardapios",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CardapioListResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Cardapios"],
+        "summary": "Cadastra cardapio",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CardapioInput" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Cardapio cadastrado",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/OperacaoResponse" }
+              }
+            }
+          },
+          "400": { "description": "Dados invalidos" },
+          "404": { "description": "Produto vinculado nao encontrado" }
+        }
+      }
+    },
+    "/cardapios/{id}": {
+      "parameters": [{ "$ref": "#/components/parameters/Id" }],
+      "get": {
+        "tags": ["Cardapios"],
+        "summary": "Busca cardapio por ID",
+        "responses": {
+          "200": {
+            "description": "Cardapio encontrado",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CardapioResponse" }
+              }
+            }
+          },
+          "400": { "description": "ID invalido" },
+          "404": { "description": "Cardapio nao encontrado" }
+        }
+      },
+      "delete": {
+        "tags": ["Cardapios"],
+        "summary": "Remove cardapio",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Cardapio removido",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/OperacaoResponse" }
+              }
+            }
+          },
+          "404": { "description": "Cardapio nao encontrado" }
+        }
+      }
+    },
+    "/pedidos": {
+      "post": {
+        "tags": ["Pedidos"],
+        "summary": "Cria pedido",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/PedidoInput" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Pedido criado",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/PedidoResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "Pedido invalido",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Erro" }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": ["Pedidos"],
+        "summary": "Lista pedidos",
+        "responses": {
+          "200": {
+            "description": "Lista de pedidos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Pedido" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pedidos/{id}": {
+      "parameters": [{ "$ref": "#/components/parameters/Id" }],
+      "get": {
+        "tags": ["Pedidos"],
+        "summary": "Busca pedido por ID",
+        "responses": {
+          "200": {
+            "description": "Pedido encontrado",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Pedido" }
+              }
+            }
+          },
+          "404": { "description": "Pedido nao encontrado" }
+        }
+      },
+      "delete": {
+        "tags": ["Pedidos"],
+        "summary": "Remove pedido",
+        "responses": {
+          "200": {
+            "description": "Pedido removido",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/OperacaoResponse" }
+              }
+            }
+          },
+          "404": { "description": "Pedido nao encontrado" }
+        }
+      }
+    },
+    "/pedidos/{id}/status": {
+      "parameters": [{ "$ref": "#/components/parameters/Id" }],
+      "patch": {
+        "tags": ["Pedidos"],
+        "summary": "Atualiza status do pedido",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/StatusInput" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Status atualizado",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/PedidoResponse" }
+              }
+            }
+          },
+          "400": { "description": "Status invalido" },
+          "404": { "description": "Pedido nao encontrado" }
+        }
+      }
+    },
+    "/public/uploads/produtos/{arquivo}": {
+      "get": {
+        "tags": ["Produtos"],
+        "summary": "Acessa imagem de produto",
+        "parameters": [
+          {
+            "name": "arquivo",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Arquivo de imagem",
+            "content": { "image/jpeg": {}, "image/png": {} }
+          },
+          "404": { "description": "Arquivo nao encontrado" }
+        }
+      }
+    }
+  }
+}
