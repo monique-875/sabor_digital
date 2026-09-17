@@ -4,6 +4,7 @@ const router = express.Router();
 const produtoRoutes = require('./produtoRoutes');
 const cardapioRoutes = require('./cardapioRoutes');
 const pedidoRoutes = require('./pedidoRoutes');
+const authRoutes = require('./authRoutes');
 const usuarioRoutes = require('./usuarioRoutes');
 
 
@@ -21,6 +22,7 @@ router.get('/', (req, res) => {
 router.use('/produtos', produtoRoutes);
 router.use('/cardapios', cardapioRoutes);
 router.use('/pedidos', pedidoRoutes);
+router.use('/auth', authRoutes);
 //Usuario
 router.use('/usuarios', usuarioRoutes);
 

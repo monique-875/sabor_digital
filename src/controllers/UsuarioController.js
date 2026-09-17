@@ -7,7 +7,8 @@ class UsuarioController {
             res.status(201).json({
                 mensagem: 'Usuário cadastrado com sucesso',
                 usuario
-            });
+            });                                                                                                                                         
+
         } catch (erro) {
             res.status(erro.status || 500).json({ erro: erro.message || 'Erro interno do servidor' });
         }

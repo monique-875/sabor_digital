@@ -4,7 +4,38 @@ Esta documentação é destinada à equipe de frontend para integração com a A
 A API Rest fornece endpoints completos para gerenciar **Produtos**, **Cardápios** e **Pedidos**.
 
 > **Base URL:** `http://localhost:3000` (ou a URL de produção/homologação quando disponível) \
-> **Content-Type:** Todas as requisições e respostas com corpo utilizam padrão `application/json`.
+> **Content-Type:** Todas as requisições e respostas com corpo utilizam padrão `application/json`. \
+> **Segurança:** Várias rotas agora requerem autenticação. Você deve enviar o Token JWT no cabeçalho HTTP: `Authorization: Bearer <seu_token>`
+
+---
+
+## 0. Autenticação (JWT)
+O sistema exige login para realizar modificações no cardápio e nos produtos.
+
+### **Criar Conta**
+**`POST /auth/registrar`** \
+Cria um novo usuário.
+**Body:**
+```json
+{
+  "nome": "Admin",
+  "email": "admin@sabordigital.com",
+  "senha": "123",
+  "papel": "admin"
+}
+```
+
+### **Fazer Login**
+**`POST /auth/login`** \
+Autentica o usuário e devolve o Token JWT.
+**Body:**
+```json
+{
+  "email": "admin@sabordigital.com",
+  "senha": "123"
+}
+```
+**Resposta (200 OK):** Guarda a chave `"token"` e a utilize nas rotas protegidas.
 
 ---
 
